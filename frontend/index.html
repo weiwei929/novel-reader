@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>网文阅读器</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@latest/dist/full.css" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📚</text></svg>">
+</head>
+<body class="bg-base-100 min-h-screen">
+    <!-- 导航栏 -->
+    <div class="navbar bg-base-200 shadow-lg">
+        <div class="navbar-start">
+            <div class="dropdown">
+                <div tabindex="0" role="button" class="btn btn-ghost lg:hidden">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h8m-8 6h16"></path>
+                    </svg>
+                </div>
+                <ul tabindex="0" class="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow bg-base-100 rounded-box w-52">
+                    <li><a id="nav-home">首页</a></li>
+                    <li><a id="nav-reader">阅读</a></li>
+                    <li><a id="nav-overview">总览</a></li>
+                    <li><a id="nav-manage">管理</a></li>
+                </ul>
+            </div>
+            <a class="btn btn-ghost text-xl font-bold">📚 网文阅读器</a>
+        </div>
+        <div class="navbar-center hidden lg:flex">
+            <ul class="menu menu-horizontal px-1">
+                <li><a id="nav-home-desktop" class="active">首页</a></li>
+                <li><a id="nav-reader-desktop">阅读</a></li>
+                <li><a id="nav-overview-desktop">总览</a></li>
+                <li><a id="nav-manage-desktop">管理</a></li>
+            </ul>
+        </div>
+        <div class="navbar-end">
+            <div class="dropdown dropdown-end">
+                <div tabindex="0" role="button" class="btn btn-ghost">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                    </svg>
+                </div>
+                <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52">
+                    <li><a id="theme-light">🌞 明亮模式</a></li>
+                    <li><a id="theme-dark">🌙 暗黑模式</a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- 主内容区域 -->
+    <main class="container mx-auto px-4 py-8">
+        <!-- 首页 -->
+        <div id="home-page" class="page-content">
+            <div class="hero bg-base-200 rounded-lg mb-8">
+                <div class="hero-content text-center">
+                    <div class="max-w-md">
+                        <h1 class="text-5xl font-bold mb-4 text-gray-700">📚 网文阅读器</h1>
+                        <p class="py-6 text-lg">支持多格式文件导入、章节导航、明暗模式切换的现代化阅读体验</p>
+                        <button id="upload-btn" class="btn btn-neutral">📁 导入小说</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 文件上传区域 -->
+            <div class="card bg-base-100 shadow-xl mb-8">
+                <div class="card-body">
+                    <h2 class="card-title text-2xl mb-4">📂 文件导入</h2>
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text text-base">选择文件 (.txt, .md)</span>
+                        </label>
+                        <input type="file" id="file-input" class="file-input file-input-bordered w-full" accept=".txt,.md">
+                        <div class="label">
+                            <span class="label-text-alt">支持 TXT 和 Markdown 格式，更多格式即将支持</span>
+                        </div>
+                    </div>
+                    <div class="card-actions justify-end mt-4">
+                        <button id="import-btn" class="btn btn-neutral" disabled>导入小说</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 简化的小说列表 -->
+            <div class="card bg-base-100 shadow-xl">
+                <div class="card-body">
+                    <h2 class="card-title text-2xl mb-4">📖 我的小说</h2>
+                    <div id="novel-list" class="space-y-3 mt-4">
+                        <!-- 小说列表将在这里动态生成 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 阅读页面 -->
+        <div id="reader-page" class="page-content hidden">
+            <!-- 小说标题栏 -->
+            <div id="novel-header" class="card bg-base-200 shadow-sm mb-6 hidden">
+                <div class="card-body py-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h1 id="novel-title" class="text-2xl font-bold text-primary"></h1>
+                            <p id="novel-author" class="text-base-content/70 mt-1"></p>
+                        </div>
+                        <div class="text-right">
+                            <p id="novel-progress" class="text-sm text-base-content/60"></p>
+                            <button id="show-overview-btn" class="btn btn-sm btn-outline mt-2">📋 章节总览</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex flex-col lg:flex-row gap-6">
+                <!-- 章节目录 -->
+                <div class="lg:w-1/4">
+                    <div class="card bg-base-100 shadow-xl sticky top-4">
+                        <div class="card-body">
+                            <h3 class="card-title text-lg">📋 章节目录</h3>
+                            <div id="chapter-list" class="menu bg-base-100 max-h-96 overflow-y-auto">
+                                <!-- 章节列表将在这里动态生成 -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 阅读内容 -->
+                <div class="lg:w-3/4">
+                    <div class="card bg-base-100 shadow-xl">
+                        <div class="card-body">
+                            <!-- 章节标题和工具栏 -->
+                            <div class="flex justify-between items-center mb-6">
+                                <h2 id="chapter-title" class="text-3xl font-bold text-primary">选择章节开始阅读</h2>
+                                <div class="flex gap-2">
+                                    <button id="prev-chapter" class="btn btn-sm btn-neutral" disabled>← 上一章</button>
+                                    <button id="next-chapter" class="btn btn-sm btn-neutral" disabled>下一章 →</button>
+                                </div>
+                            </div>
+
+                            <!-- 章节图片 -->
+                            <!-- 已移除章节配图相关内容 -->
+
+                            <!-- 阅读内容 -->
+                            <div id="chapter-content" class="prose prose-lg max-w-none leading-relaxed text-justify" style="line-height: 2;">
+                                <p class="text-center text-base-content/60">请从左侧目录选择章节开始阅读</p>
+                            </div>
+
+                            <!-- 阅读进度 -->
+                            <div class="mt-8">
+                                <div class="flex justify-between text-sm text-base-content/60 mb-2">
+                                    <span>阅读进度</span>
+                                    <span id="progress-text">0%</span>
+                                </div>
+                                <progress id="reading-progress" class="progress progress-primary w-full" value="0" max="100"></progress>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 文章卡片总览页面 -->
+        <div id="overview-page" class="page-content hidden">
+            <div class="mb-6">
+                <div class="flex items-center justify-between">
+                    <h1 class="text-3xl font-bold text-primary">📋 章节总览</h1>
+                    <div class="flex gap-2">
+                        <button id="overview-back-btn" class="btn btn-neutral">← 返回阅读</button>
+                        <div class="dropdown dropdown-end">
+                            <div tabindex="0" role="button" class="btn btn-outline">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                                </svg>
+                                视图
+                            </div>
+                            <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-40">
+                                <li><a id="view-grid">🔲 网格视图</a></li>
+                                <li><a id="view-list">📋 列表视图</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <p id="overview-subtitle" class="text-base-content/70 mt-2">选择小说查看章节总览</p>
+            </div>
+
+            <!-- 章节卡片容器 -->
+            <div id="chapter-cards-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- 章节卡片将在这里动态生成 -->
+            </div>
+
+            <!-- 空状态 -->
+            <div id="overview-empty" class="text-center py-16">
+                <div class="text-6xl mb-4">📚</div>
+                <h3 class="text-xl font-semibold mb-2">暂无章节内容</h3>
+                <p class="text-base-content/60 mb-4">请先导入小说或选择已有小说</p>
+                <button id="goto-home-btn" class="btn btn-primary">📁 导入小说</button>
+            </div>
+        </div>
+
+        <!-- 管理页面 -->
+        <div id="manage-page" class="page-content hidden">
+            <div class="card bg-base-100 shadow-xl">
+                <div class="card-body">
+                    <h2 class="card-title text-2xl mb-4">⚙️ 小说管理</h2>
+                    <div id="manage-list" class="space-y-4 mt-4">
+                        <!-- 管理列表将在这里动态生成 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 右键上下文菜单 -->
+    <div id="context-menu" class="fixed z-50 hidden">
+        <ul class="menu bg-base-100 shadow-lg rounded-box w-48">
+            <li><a id="context-insert-image">🖼️ 插入配图</a></li>
+            <li><a id="context-copy-text">📋 复制文本</a></li>
+            <li><a id="context-bookmark">🔖 添加书签</a></li>
+        </ul>
+    </div>
+
+    <!-- 图片插入模态框 -->
+    <dialog id="image-insert-modal" class="modal">
+        <div class="modal-box">
+            <h3 class="font-bold text-lg mb-4">🖼️ 插入图片</h3>
+            <div class="form-control mb-4">
+                <label class="label">
+                    <span class="label-text">选择图片文件</span>
+                </label>
+                <input type="file" id="modal-image-input" class="file-input file-input-bordered w-full" accept="image/*">
+            </div>
+            <div class="form-control mb-4">
+                <label class="label">
+                    <span class="label-text">图片说明（可选）</span>
+                </label>
+                <input type="text" id="image-caption" class="input input-bordered w-full" placeholder="输入图片说明...">
+            </div>
+            <div id="image-preview" class="mb-4 hidden">
+                <img id="preview-image" class="w-full max-w-xs mx-auto rounded-lg shadow-md" alt="预览">
+            </div>
+            <div class="modal-action">
+                <button id="insert-image-confirm" class="btn btn-primary" disabled>插入图片</button>
+                <button id="insert-image-cancel" class="btn btn-neutral">取消</button>
+            </div>
+        </div>
+    </dialog>
+
+    <!-- 模态框 -->
+    <!-- 确认删除模态框 -->
+    <dialog id="delete-modal" class="modal">
+        <div class="modal-box">
+            <h3 class="font-bold text-lg">⚠️ 确认删除</h3>
+            <p class="py-4">确定要删除这部小说吗？此操作不可撤销。</p>
+            <div class="modal-action">
+                <button id="confirm-delete" class="btn btn-error">删除</button>
+                <button id="cancel-delete" class="btn btn-neutral">取消</button>
+            </div>
+        </div>
+    </dialog>
+
+    <!-- 加载提示 -->
+    <div id="loading" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-base-100 p-6 rounded-lg shadow-xl">
+            <div class="flex items-center space-x-3">
+                <span class="loading loading-spinner loading-md"></span>
+                <span>处理中...</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast 通知 -->
+    <div id="toast-container" class="toast toast-top toast-end z-50"></div>
+
+    <script type="module" src="js/app.js"></script>
+</body>
+</html>
