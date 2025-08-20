@@ -19,10 +19,11 @@ APP_DIR="/var/www/novel-reader"
 DOMAIN_NAME="your-domain.com"  # 请修改为您的域名
 NODE_VERSION="18"
 
-# 检查是否为 root 用户
+# 检查是否为 root 用户 (允许 root 运行，但给出警告)
 if [[ $EUID -eq 0 ]]; then
-   echo -e "${RED}❌ 请不要以 root 用户运行此脚本${NC}"
-   exit 1
+   echo -e "${YELLOW}⚠️  检测到以 root 用户运行，建议创建普通用户进行部署${NC}"
+   echo -e "${YELLOW}⚠️  继续执行，但请确保了解安全风险...${NC}"
+   sleep 3
 fi
 
 # 函数：打印步骤
