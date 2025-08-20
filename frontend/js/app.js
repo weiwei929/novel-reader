@@ -210,11 +210,20 @@ class ReaderApp {
             this.hideContextMenu();
         });
 
-        // 阅读内容右键事件
-        document.getElementById('chapter-content')?.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-            this.showContextMenu(e);
-        });
+        // 初始绑定上下文菜单事件
+        this.bindContextMenuEvents();
+    }
+
+    bindContextMenuEvents() {
+        // 移除旧的事件监听器（如果存在）
+        const chapterContent = document.getElementById('chapter-content');
+        if (chapterContent) {
+            // 创建新的事件监听器
+            chapterContent.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                this.showContextMenu(e);
+            });
+        }
     }
 
     initImageModal() {
@@ -786,6 +795,9 @@ class ReaderApp {
         // 保存阅读进度
         this.saveReadingProgress();
         // 已禁用章节配图移除功能，移除该方法
+        
+        // 重新绑定上下文菜单事件（因为内容已更新）
+        this.bindContextMenuEvents();
     }
 
     formatChapterContent(content) {
