@@ -1,6 +1,49 @@
 # 🚀 快速部署指南
 
-## 方法一：自动部署脚本 (推荐)
+## 📋 VPS 部署路径推荐
+
+### 推荐部署路径
+```bash
+# 主要选择（推荐）
+/var/www/novel-reader/
+
+# 或者使用应用专用目录
+/opt/novel-reader/
+```
+
+### 路径选择说明
+| 路径 | 优势 | 适用场景 |
+|------|------|----------|
+| `/var/www/novel-reader/` | ✅ Web 应用标准位置<br>✅ Nginx 默认识别<br>✅ 权限管理简单 | **推荐使用** |
+| `/opt/novel-reader/` | ✅ 第三方应用标准位置<br>✅ 系统级应用 | 企业环境 |
+| `/home/username/novel-reader/` | ✅ 用户目录<br>❌ 权限复杂 | 开发测试 |
+
+## 方法一：GitHub 克隆部署 (推荐)
+
+### 1. 从 GitHub 克隆项目
+```bash
+# 切换到推荐目录
+cd /var/www/
+
+# 克隆项目
+sudo git clone https://github.com/weiwei929/novel-reader.git
+cd novel-reader
+
+# 设置正确的权限
+sudo chown -R www-data:www-data /var/www/novel-reader
+sudo chmod -R 755 /var/www/novel-reader
+
+# 给脚本执行权限
+sudo chmod +x deploy.sh health-check.sh
+```
+
+### 2. 一键自动部署
+```bash
+# 运行自动部署脚本
+sudo ./deploy.sh
+```
+
+## 方法二：文件上传部署
 
 ### 1. 上传项目到服务器
 ```bash
@@ -10,10 +53,12 @@ tar -czf novel-reader.tar.gz backend/ frontend/ ecosystem.config.js nginx.conf d
 # 上传到服务器
 scp novel-reader.tar.gz user@your-server:~/
 
-# 登录服务器并解压
+# 登录服务器并解压到推荐路径
 ssh user@your-server
-tar -xzf novel-reader.tar.gz
-cd novel-reader/
+sudo mkdir -p /var/www/
+sudo tar -xzf novel-reader.tar.gz -C /var/www/
+sudo mv /var/www/novel-reader/ /var/www/novel-reader/
+cd /var/www/novel-reader/
 ```
 
 ### 2. 修改配置
@@ -26,7 +71,7 @@ nano deploy.sh
 ### 3. 运行部署脚本
 ```bash
 chmod +x deploy.sh
-./deploy.sh
+sudo ./deploy.sh
 ```
 
 脚本会自动完成：
@@ -36,9 +81,29 @@ chmod +x deploy.sh
 - ✅ 配置 Nginx 反向代理
 - ✅ 设置防火墙和开机自启
 
-## 方法二：手动部署
+## 方法三：手动部署
 
 ### 1. 环境准备
+```bash
+# 更新系统
+sudo apt update && sudo apt upgrade -y
+
+# 安装必要软件
+sudo apt install -y git nginx nodejs npm
+
+# 切换到标准 Web 目录
+cd /var/www/
+
+# 克隆项目
+sudo git clone https://github.com/weiwei929/novel-reader.git
+cd novel-reader
+
+# 设置权限
+sudo chown -R www-data:www-data /var/www/novel-reader
+sudo chmod +x deploy.sh health-check.sh
+```
+
+### 2. 环境配置
 ```bash
 # 更新系统
 sudo apt update && sudo apt upgrade -y
@@ -82,10 +147,23 @@ sudo cp nginx.conf /etc/nginx/sites-available/novel-reader
 # 修改域名 (将 your-domain.com 改为实际域名)
 sudo nano /etc/nginx/sites-available/novel-reader
 
-# 启用站点
-sudo ln -s /etc/nginx/sites-available/novel-reader /etc/nginx/sites-enabled/
-sudo nginx -t
-sudo systemctl reload nginx
+## 📁 部署后目录结构
+
+```
+/var/www/novel-reader/
+├── backend/                # 后端代码
+│   ├── package.json       # 后端依赖配置
+│   ├── server.js          # 主服务文件
+│   └── uploads/           # 图片上传目录
+├── frontend/              # 前端代码 (Nginx 指向这里)
+│   ├── index.html         # 主页面
+│   ├── css/style.css      # 样式文件
+│   └── js/                # JavaScript 文件
+├── deploy.sh              # 一键部署脚本
+├── nginx.conf             # Nginx 配置文件
+├── ecosystem.config.js    # PM2 进程管理配置
+├── health-check.sh        # 健康检查脚本
+└── README.md              # 项目文档
 ```
 
 ## SSL 证书配置
@@ -102,12 +180,72 @@ sudo crontab -e
 # 添加: 0 12 * * * /usr/bin/certbot renew --quiet
 ```
 
-## 验证部署
+## 🔍 验证部署
 
 ### 检查服务状态
 ```bash
 # 检查后端服务
 pm2 status
+
+# 查看进程日志
+pm2 logs novel-reader
+
+# 检查 Nginx 状态
+sudo systemctl status nginx
+
+# 运行健康检查
+./health-check.sh
+```
+
+### 访问测试
+```bash
+# 测试后端 API
+curl http://localhost:3000/health
+
+# 测试前端页面
+curl http://localhost/ 
+
+# 如果配置了域名
+curl http://your-domain.com/
+```
+
+## 📝 部署最佳实践
+
+### 权限设置
+```bash
+# 确保正确的文件权限
+sudo chown -R www-data:www-data /var/www/novel-reader
+sudo chmod -R 755 /var/www/novel-reader
+sudo chmod +x /var/www/novel-reader/deploy.sh
+sudo chmod +x /var/www/novel-reader/health-check.sh
+```
+
+### 服务管理
+```bash
+# 启动所有服务
+sudo systemctl enable nginx
+sudo systemctl start nginx
+pm2 startup  # 设置 PM2 开机自启
+pm2 save     # 保存当前进程列表
+
+# 重启服务
+pm2 restart novel-reader
+sudo systemctl reload nginx
+```
+
+### 更新部署
+```bash
+# 拉取最新代码
+cd /var/www/novel-reader
+sudo git pull origin master
+
+# 重新安装依赖（如果需要）
+cd backend
+sudo npm install
+
+# 重启服务
+pm2 restart novel-reader
+```
 
 # 检查 Nginx
 sudo systemctl status nginx
