@@ -19,9 +19,12 @@ class ImageManager {
             const result = await response.json();
             if (result.filePath) {
                 // 返回完整的图片 URL
-                return window.location.hostname === 'localhost' 
-                    ? 'http://localhost:3000' + result.filePath 
-                    : result.filePath;
+                if (window.location.hostname === 'localhost') {
+                    return 'http://localhost:3000' + result.filePath;
+                } else {
+                    // 生产环境：使用当前域名 + 路径
+                    return window.location.origin + result.filePath;
+                }
             } else {
                 throw new Error(result.error || '图片上传失败');
             }
