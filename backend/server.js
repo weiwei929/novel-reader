@@ -37,7 +37,13 @@ app.post('/upload', (req, res) => {
 	const bb = busboy({ headers: req.headers });
   
 	bb.on('file', (name, file, info) => {
-		const filename = `${Date.now()}-${info.filename}`;
+		// 处理文件名，移除特殊字符和中文，保留扩展名
+		const originalName = info.filename;
+		const ext = path.extname(originalName);
+		const baseName = path.basename(originalName, ext);
+		// 生成安全的文件名：时间戳 + 随机字符 + 扩展名
+		const safeBaseName = baseName.replace(/[^a-zA-Z0-9]/g, '').substring(0, 10) || 'image';
+		const filename = `${Date.now()}-${safeBaseName}${ext}`;
 		const savePath = path.join(uploadDir, filename);
     
 		file.pipe(fs.createWriteStream(savePath))
@@ -119,7 +125,13 @@ app.post('/upload-image', (req, res) => {
 	const bb = busboy({ headers: req.headers });
   
 	bb.on('file', (name, file, info) => {
-		const filename = `${Date.now()}-${info.filename}`;
+		// 处理文件名，移除特殊字符和中文，保留扩展名
+		const originalName = info.filename;
+		const ext = path.extname(originalName);
+		const baseName = path.basename(originalName, ext);
+		// 生成安全的文件名：时间戳 + 随机字符 + 扩展名
+		const safeBaseName = baseName.replace(/[^a-zA-Z0-9]/g, '').substring(0, 10) || 'image';
+		const filename = `${Date.now()}-${safeBaseName}${ext}`;
 		const savePath = path.join(uploadDir, filename);
     
 		file.pipe(fs.createWriteStream(savePath))
