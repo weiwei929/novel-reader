@@ -41,6 +41,8 @@ class ReaderApp {
         this.contextMenuTarget = null;
         this.cursorPosition = null;
         this.viewMode = 'grid'; // 总览页面视图模式
+        this.editingNovel = null;
+        this.editingChapterIndex = null;
     }
 
     loadSettings() {
@@ -165,6 +167,20 @@ class ReaderApp {
         document.getElementById('view-grid')?.addEventListener('click', () => this.setViewMode('grid'));
         document.getElementById('view-list')?.addEventListener('click', () => this.setViewMode('list'));
 
+        // 编辑器页面
+        document.getElementById('editor-back-btn')?.addEventListener('click', () => this.showPage('manage'));
+        document.getElementById('editor-cancel-btn')?.addEventListener('click', () => this.showPage('manage'));
+        document.getElementById('editor-save-btn')?.addEventListener('click', () => this.saveEditorContent());
+
+        // Markdown 编辑器实时预览
+        const editor = document.getElementById('markdown-editor');
+        if (editor) {
+            editor.addEventListener('input', () => this.updateMarkdownPreview());
+        }
+
+        // 编辑器工具栏按钮事件绑定
+        this.bindEditorToolbarEvents();
+
     // 已禁用章节顶部配图相关按钮和事件
 
         // 删除确认
@@ -189,6 +205,49 @@ class ReaderApp {
 
         // 点击其他地方隐藏右键菜单
         document.addEventListener('click', () => this.hideContextMenu());
+    }
+
+    bindEditorToolbarEvents() {
+        // 绑定编辑器工具栏按钮事件
+        const toolbar = document.querySelector('.editor-toolbar');
+        if (toolbar) {
+            toolbar.addEventListener('click', (e) => {
+                const button = e.target.closest('button');
+                if (!button) return;
+                
+                const action = button.dataset.action;
+                if (!action) return;
+                
+                e.preventDefault();
+                
+                switch(action) {
+                    case 'insert-heading':
+                        this.editorInsertText('# 标题');
+                        break;
+                    case 'insert-bold':
+                        this.editorInsertText('**粗体**');
+                        break;
+                    case 'insert-italic':
+                        this.editorInsertText('*斜体*');
+                        break;
+                    case 'insert-link':
+                        this.insertLink();
+                        break;
+                    case 'insert-image':
+                        this.insertImage();
+                        break;
+                    case 'insert-list':
+                        this.editorInsertText('- 列表项');
+                        break;
+                    case 'insert-quote':
+                        this.editorInsertText('> 引用');
+                        break;
+                    case 'insert-code':
+                        this.editorInsertText('`代码`');
+                        break;
+                }
+            });
+        }
     }
 
     initContextMenu() {
@@ -425,31 +484,49 @@ class ReaderApp {
 
         if (novels.length === 0) {
             manageList.innerHTML = `
-                <div class="text-center py-8 text-base-content/60">
-                    <div class="text-4xl mb-2">📚</div>
-                    <p>暂无小说需要管理</p>
+                <div class="text-center py-12 text-base-content/60">
+                    <div class="text-4xl mb-4">📚</div>
+                    <h3 class="text-xl font-semibold mb-2">暂无小说需要管理</h3>
+                    <p class="mb-4">导入小说后可以在这里进行管理</p>
                 </div>
             `;
             return;
         }
 
         manageList.innerHTML = novels.map(novel => `
-            <div class="card bg-base-100 shadow-md">
+            <div class="card bg-base-100 shadow-lg hover:shadow-xl transition-all duration-300">
                 <div class="card-body">
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <h3 class="card-title">${novel.title}</h3>
-                            <p class="text-base-content/60">作者：${novel.author}</p>
-                            <p class="text-sm text-base-content/60 mt-1">
-                                ${novel.chapters.length} 章节 | 
-                                创建时间：${new Date(novel.createdAt).toLocaleDateString()}
-                            </p>
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="flex-1">
+                            <h3 class="card-title text-lg mb-2">${novel.title}</h3>
+                            <p class="text-base-content/60 mb-1">作者：${novel.author}</p>
+                            <div class="flex items-center gap-4 text-sm text-base-content/60">
+                                <span>${novel.chapters.length} 章节</span>
+                                <span>•</span>
+                                <span>创建时间：${new Date(novel.createdAt).toLocaleDateString()}</span>
+                            </div>
                         </div>
-                        <div class="card-actions">
-                            <button class="btn btn-sm btn-error" onclick="app.deleteNovel('${novel.id}')">
-                                🗑️删除
-                            </button>
-                        </div>
+                    </div>
+                    
+                    <div class="flex flex-wrap gap-2 mb-4">
+                        <div class="badge badge-primary">${novel.fileType || 'txt'}</div>
+                        <div class="badge badge-secondary">${novel.chapters.length}章</div>
+                        <div class="badge badge-accent">${Math.round((novel.lastReadChapter || 0) / novel.chapters.length * 100)}%</div>
+                    </div>
+
+                    <div class="card-actions justify-end">
+                        <button class="btn btn-sm btn-outline" onclick="app.editNovel('${novel.id}')">
+                            <i class="fas fa-edit"></i>
+                            编辑
+                        </button>
+                        <button class="btn btn-sm btn-outline" onclick="app.exportNovel('${novel.id}')">
+                            <i class="fas fa-download"></i>
+                            导出
+                        </button>
+                        <button class="btn btn-sm btn-error" onclick="app.deleteNovel('${novel.id}')">
+                            <i class="fas fa-trash"></i>
+                            删除
+                        </button>
                     </div>
                 </div>
             </div>
@@ -461,6 +538,234 @@ class ReaderApp {
         const modal = document.getElementById('delete-modal');
         if (modal) {
             modal.showModal();
+        }
+    }
+
+    editNovel(novelId) {
+        const novels = this.fileManager.loadFromStorage();
+        this.editingNovel = novels.find(novel => novel.id === novelId);
+        
+        if (this.editingNovel) {
+            this.openEditor(novelId);
+        }
+    }
+
+    openEditor(novelId) {
+        this.showPage('editor');
+        
+        // 设置编辑器标题
+        document.querySelector('#editor-page .card-title').textContent = `编辑《${this.editingNovel.title}》`;
+        
+        // 加载整个小说的Markdown内容到编辑器
+        const editor = document.getElementById('markdown-editor');
+        const fullMarkdown = this.serializeNovelToMarkdown(this.editingNovel);
+        editor.value = fullMarkdown;
+        
+        // 更新预览
+        this.updateMarkdownPreview();
+        
+        this.showToast(`开始编辑《${this.editingNovel.title}》`, 'info');
+    }
+
+    updateMarkdownPreview() {
+        const editor = document.getElementById('markdown-editor');
+        const preview = document.getElementById('markdown-preview');
+        
+        if (editor && preview) {
+            const content = editor.value;
+            preview.innerHTML = this.fileManager.markdownParser.processMarkdownContent(content);
+        }
+    }
+
+    editorInsertText(text) {
+        const editor = document.getElementById('markdown-editor');
+        if (!editor) return;
+        
+        const startPos = editor.selectionStart;
+        const endPos = editor.selectionEnd;
+        const currentValue = editor.value;
+        
+        // 插入文本到光标位置
+        editor.value = currentValue.substring(0, startPos) + text + currentValue.substring(endPos);
+        
+        // 移动光标到插入文本之后
+        editor.selectionStart = startPos + text.length;
+        editor.selectionEnd = startPos + text.length;
+        
+        // 聚焦编辑器
+        editor.focus();
+        
+        // 更新预览
+        this.updateMarkdownPreview();
+    }
+
+    // 专门处理链接插入
+    insertLink() {
+        const url = prompt('请输入链接URL:', 'https://');
+        if (url) {
+            const text = prompt('请输入链接文本:', '链接文本');
+            const linkMarkdown = `[${text || '链接'}](${url})`;
+            this.editorInsertText(linkMarkdown);
+        }
+    }
+
+    // 专门处理图片插入 - 支持上传和URL两种方式
+    async insertImage() {
+        // 询问用户选择插入方式
+        const useUpload = confirm('请选择图片插入方式：\n\n点击"确定"上传本地图片\n点击"取消"输入图片URL');
+        
+        if (useUpload) {
+            // 上传本地图片
+            const fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.accept = 'image/*';
+            
+            fileInput.onchange = async (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    try {
+                        const imageUrl = await this.imageManager.uploadImage(file);
+                        const caption = prompt('请输入图片说明（可选）:', '');
+                        const imageMarkdown = `![${caption || '图片'}](${imageUrl})`;
+                        this.editorInsertText(imageMarkdown);
+                        this.showToast('图片插入成功', 'success');
+                    } catch (error) {
+                        this.showToast('图片上传失败: ' + error.message, 'error');
+                    }
+                }
+            };
+            
+            fileInput.click();
+        } else {
+            // 输入图片URL
+            const url = prompt('请输入图片URL:', 'https://');
+            if (url) {
+                // 验证URL格式
+                if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                    this.showToast('请输入有效的URL地址（以http://或https://开头）', 'error');
+                    return;
+                }
+                
+                const caption = prompt('请输入图片说明（可选）:', '');
+                const imageMarkdown = `![${caption || '图片'}](${url})`;
+                this.editorInsertText(imageMarkdown);
+                this.showToast('图片插入成功', 'success');
+            }
+        }
+    }
+
+    // 将小说序列化为Markdown格式
+    serializeNovelToMarkdown(novel) {
+        let markdown = `# ${novel.title}\n\n`;
+        if (novel.author && novel.author !== '未知作者') {
+            markdown += `作者: ${novel.author}\n\n`;
+        }
+        markdown += novel.chapters.map(chapter => `## ${chapter.title}\n\n${chapter.content.trim()}`).join('\n\n');
+        return markdown;
+    }
+
+    // 从Markdown解析为小说结构
+    parseMarkdownToNovel(markdown, filename) {
+        // 使用markdownParser解析Markdown内容
+        const novelData = this.fileManager.markdownParser.parseMarkdown(markdown);
+        
+        // 从Markdown内容中提取标题和作者信息
+        const lines = markdown.split('\n');
+        for (let i = 0; i < Math.min(10, lines.length); i++) {
+            const line = lines[i].trim();
+            
+            // 提取标题（一级标题）
+            const titleMatch = line.match(/^#\s+(.+)$/);
+            if (titleMatch) {
+                novelData.title = titleMatch[1].trim();
+                continue;
+            }
+            
+            // 提取作者信息
+            const authorMatch = line.match(/作者[：:]\s*(.+)/);
+            if (authorMatch) {
+                novelData.author = authorMatch[1].trim();
+                continue;
+            }
+        }
+        
+        novelData.filename = filename;
+        // createdAt 将在 saveEditorContent 中从原始小说设置，这里不需要覆盖
+        return novelData;
+    }
+
+    async saveEditorContent() {
+        if (!this.editingNovel) return;
+        
+        const editor = document.getElementById('markdown-editor');
+        const fullMarkdown = editor.value;
+        
+        if (!fullMarkdown.trim()) {
+            this.showToast('内容不能为空', 'error');
+            return;
+        }
+
+        try {
+            // 解析完整的Markdown内容为小说结构
+            const updatedNovel = this.parseMarkdownToNovel(fullMarkdown, this.editingNovel.filename);
+            
+            // 保留原有的ID和其他元数据
+            updatedNovel.id = this.editingNovel.id;
+            updatedNovel.createdAt = this.editingNovel.createdAt;
+            updatedNovel.lastReadChapter = this.editingNovel.lastReadChapter;
+            
+            // 如果解析后没有提取到作者信息，保留原有作者
+            if (!updatedNovel.author || updatedNovel.author === '未知作者') {
+                updatedNovel.author = this.editingNovel.author;
+            }
+            
+            // 更新小说数据
+            this.fileManager.saveToStorage(updatedNovel);
+            // 更新当前编辑的小说对象
+            this.editingNovel = updatedNovel;
+            
+            this.showToast('小说保存成功', 'success');
+            
+            // 返回管理页面
+            this.showPage('manage');
+            this.loadManagePage();
+            
+        } catch (error) {
+            console.error('保存失败:', error);
+            this.showToast('保存失败: ' + error.message, 'error');
+        }
+    }
+
+    // 切换编辑器全屏模式
+    toggleFullscreen() {
+        const editor = document.getElementById('markdown-editor');
+        const preview = document.getElementById('markdown-preview');
+        const editorPage = document.getElementById('editor-page');
+        
+        if (editorPage.classList.contains('fullscreen')) {
+            // 退出全屏
+            editorPage.classList.remove('fullscreen');
+            editor.classList.remove('h-screen');
+            preview.classList.remove('h-screen');
+            document.body.classList.remove('overflow-hidden');
+            this.showToast('已退出全屏模式', 'info');
+        } else {
+            // 进入全屏
+            editorPage.classList.add('fullscreen');
+            editor.classList.add('h-screen');
+            preview.classList.add('h-screen');
+            document.body.classList.add('overflow-hidden');
+            this.showToast('已进入全屏模式', 'info');
+        }
+    }
+
+    exportNovel(novelId) {
+        try {
+            this.fileManager.exportNovel(novelId);
+            this.showToast('小说导出成功', 'success');
+        } catch (error) {
+            console.error('导出失败:', error);
+            this.showToast('导出失败: ' + error.message, 'error');
         }
     }
 
@@ -491,6 +796,22 @@ class ReaderApp {
             modal.close();
         }
         this.deleteTarget = null;
+    }
+
+    // 清理未使用的图片
+    async cleanupUnusedImages() {
+        if (confirm('确定要清理未使用的图片吗？这将删除所有未被任何小说引用的图片文件。')) {
+            try {
+                this.showLoading();
+                const result = await this.imageManager.cleanupUnusedImages();
+                this.showToast(result.message || `清理完成，删除了 ${result.deletedCount} 个未使用的图片文件`, 'success');
+            } catch (error) {
+                console.error('清理图片失败:', error);
+                this.showToast('清理失败: ' + error.message, 'error');
+            } finally {
+                this.hideLoading();
+            }
+        }
     }
 
     prevChapter() {
@@ -540,6 +861,8 @@ class ReaderApp {
             this.loadOverviewPage();
         } else if (pageName === 'manage') {
             this.loadManagePage();
+        } else if (pageName === 'editor') {
+            // 编辑器页面不需要额外的导航激活
         }
     }
 

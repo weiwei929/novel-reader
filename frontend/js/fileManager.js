@@ -190,14 +190,18 @@ class FileManager {
         try {
             const existingData = this.loadFromStorage();
             
-            // 检查是否已存在相同小说
-            const existingIndex = existingData.findIndex(novel => 
-                novel.title === novelData.title && novel.author === novelData.author
-            );
+            // 检查是否已存在相同ID的小说
+            const existingIndex = existingData.findIndex(novel => novel.id === novelData.id);
 
             if (existingIndex !== -1) {
-                // 更新现有小说
-                existingData[existingIndex] = { ...existingData[existingIndex], ...novelData };
+                // 更新现有小说，保留原有的元数据但更新内容
+                existingData[existingIndex] = { 
+                    ...existingData[existingIndex], 
+                    ...novelData,
+                    // 确保保留原有的创建时间和阅读进度
+                    createdAt: existingData[existingIndex].createdAt,
+                    lastReadChapter: existingData[existingIndex].lastReadChapter
+                };
             } else {
                 // 添加新小说
                 existingData.push(novelData);

@@ -507,6 +507,79 @@ class ImageManager {
         return results;
     }
 
+    // 获取所有使用中的图片URL
+    async getAllUsedImageUrls() {
+        try {
+            const novels = JSON.parse(localStorage.getItem('novelReaderData') || '[]');
+            const usedUrls = new Set();
+            
+            // 从所有小说内容中提取图片URL
+            novels.forEach(novel => {
+                novel.chapters.forEach(chapter => {
+                    // 使用更严格的正则表达式提取Markdown图片语法中的URL
+                    const imageRegex = /!\[[^\]]*\]\(([^)]+)\)/g;
+                    let match;
+                    while ((match = imageRegex.exec(chapter.content)) !== null) {
+                        if (match[1]) {
+                            let url = match[1].trim();
+                            // 解码HTML实体（如 %3C 为 <）
+                            try {
+                                url = decodeURIComponent(url);
+                            } catch (e) {
+                                console.warn('URL解码失败:', url, e);
+                            }
+                            
+                            // 处理完整URL，提取路径部分
+                            if (url.startsWith('http')) {
+                                try {
+                                    const urlObj = new URL(url);
+                                    url = urlObj.pathname;
+                                } catch (e) {
+                                    console.error('URL解析失败:', url, e);
+                                    continue;
+                                }
+                            }
+                            
+                            // 只处理/uploads/路径的图片
+                            if (url.startsWith('/uploads/')) {
+                                usedUrls.add(url);
+                            }
+                        }
+                    }
+                });
+            });
+            
+            return Array.from(usedUrls);
+        } catch (error) {
+            console.error('获取使用中的图片URL失败:', error);
+            return [];
+        }
+    }
+
+    // 清理未使用的图片
+    async cleanupUnusedImages() {
+        try {
+            const usedUrls = await this.getAllUsedImageUrls();
+            
+            const response = await fetch('/cleanup-images', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ usedImagePaths: usedUrls })
+            });
+            
+            const result = await response.json();
+            if (!response.ok) {
+                throw new Error(result.error || '清理失败');
+            }
+            
+            return result;
+        } catch (error) {
+            throw new Error('清理未使用图片失败: ' + error.message);
+        }
+    }
+
     // 导出图片数据
     exportImages() {
         const images = this.loadAllImages();

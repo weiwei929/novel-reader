@@ -3,11 +3,23 @@
   "version": "1.0.0",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "dev": "node server.js",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
   },
   "dependencies": {
     "busboy": "^1.6.0",
     "express": "^4.21.2",
     "sqlite3": "^5.1.7"
+  },
+  "devDependencies": {
+    "eslint": "^9.34.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.4",
+    "jest": "^30.0.5",
+    "prettier": "^3.6.2",
+    "supertest": "^7.1.4"
   }
 }

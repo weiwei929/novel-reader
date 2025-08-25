@@ -32,6 +32,9 @@ app.use((req, res, next) => {
 	next();
 });
 
+// 静态文件服务 - 前端
+app.use(express.static(path.join(__dirname, '../frontend')));
+
 // 文件上传API
 app.post('/upload', (req, res) => {
 	const bb = busboy({ headers: req.headers });
@@ -150,18 +153,61 @@ app.delete('/delete-image', express.json(), (req, res) => {
 	if (!imagePath) {
 		return res.status(400).json({ error: '缺少 imagePath 参数' });
 	}
-	// 删除数据库记录
-	db.run('UPDATE articles SET image_path = NULL WHERE image_path = ?', [imagePath], function(err) {
-		if (err) {
-			return res.status(500).json({ error: '数据库操作失败' });
+	// 直接删除文件
+	const filePath = path.join(uploadDir, path.basename(imagePath));
+	fs.unlink(filePath, (err) => {
+		if (err && err.code !== 'ENOENT') {
+			return res.status(500).json({ error: '文件删除失败' });
 		}
-		// 删除文件
-		const filePath = path.join(uploadDir, path.basename(imagePath));
-		fs.unlink(filePath, (err) => {
-			if (err && err.code !== 'ENOENT') {
-				return res.status(500).json({ error: '文件删除失败' });
-			}
-			return res.json({ success: true });
+		return res.json({ success: true });
+	});
+});
+
+// 图片清理接口 - 删除未使用的图片
+app.post('/cleanup-images', express.json(), (req, res) => {
+	const { usedImagePaths } = req.body;
+	if (!usedImagePaths || !Array.isArray(usedImagePaths)) {
+		return res.status(400).json({ error: '缺少 usedImagePaths 参数或不是数组' });
+	}
+
+	// 获取uploads目录下的所有文件
+	fs.readdir(uploadDir, (err, files) => {
+		if (err) {
+			return res.status(500).json({ error: '无法读取uploads目录' });
+		}
+
+		// 提取使用的图片文件名
+		const usedFiles = usedImagePaths.map(path => {
+			const url = new URL(path, 'http://localhost:3000'); // 使用基准URL解析相对路径
+			return url.pathname.split('/').pop(); // 获取文件名
+		});
+
+		// 过滤出未使用的文件
+		const filesToDelete = files.filter(file => !usedFiles.includes(file));
+
+		// 删除未使用的文件
+		let deletedCount = 0;
+		const deletePromises = filesToDelete.map(file => {
+			return new Promise((resolve) => {
+				const filePath = path.join(uploadDir, file);
+				fs.unlink(filePath, err => {
+					if (err && err.code !== 'ENOENT') {
+						console.error(`删除文件失败: ${file}`, err);
+					} else {
+						deletedCount++;
+					}
+					resolve();
+				});
+			});
+		});
+
+		Promise.all(deletePromises).then(() => {
+			res.json({ 
+				success: true, 
+				deletedCount, 
+				totalUnused: filesToDelete.length,
+				message: `清理完成，删除了 ${deletedCount} 个未使用的图片文件`
+			});
 		});
 	});
 });
